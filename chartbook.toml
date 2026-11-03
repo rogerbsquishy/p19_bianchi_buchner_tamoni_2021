@@ -1,0 +1,74 @@
+[project]
+name = "p19_bianchi_buchner_tamoni_2021"
+description = "Bond Risk Premiums with Machine Learning"
+maintainer = "Samuel Garcia"
+contributors = ["Samuel Garcia"]
+os_compatibility = ["Windows", "Linux", "macOS"]
+requires_chartbook = ">=0.4.0"
+
+[scripts]
+build = "doit"
+
+[notebooks]
+
+
+[notebooks.01_example_notebook_interactive]
+name = "Example Notebook Interactive"
+description = "Example notebook for demonstrating how to construct a Chartbook notebook."
+path = "_output/01_example_notebook_interactive.ipynb"
+
+
+[notebooks.02_example_with_dependencies]
+name = "Example Notebook with Dependencies"
+description = "Example notebook demonstrating dependencies on data pulls."
+path = "_output/02_example_with_dependencies.ipynb"
+
+
+
+[notebooks.03_public_repo_summary_charts]
+name = "Public Repo Summary Charts"
+description = "Summary charts using public repo data."
+path = "_output/03_public_repo_summary_charts.ipynb"
+
+
+
+[dataframes]
+
+
+[dataframes.repo_public]
+name = "Public Repo Data"
+description = "Public repo series and related economic and financial aggregates."
+sources = ["FRED", "Office of Financial Research"]
+providers = ["FRED", "Office of Financial Research"]
+provider_links = ["https://fred.stlouisfed.org/", "https://www.financialresearch.gov/short-term-funding-monitor/api/"]
+tags = ["Short Term Funding", "Repo"]
+access_types = ["Public"]
+license = "No"
+contact_required = "No"
+restrictions = "No"
+pull_method = "Web API via Python"
+path = "./_data/repo_public.parquet"
+excel_path = "./_data/repo_public.xlsx"
+date_col = "date"
+docs_path = "./docs_src/dataframes/repo_public.md"
+
+
+[charts]
+
+
+[charts.repo_rates]
+name = "Repo Rates"
+description = "SOFR, the Effective Funds Rate, and the Fed's Target Range"
+dataframe = "repo_public"
+tags = ["Short Term Funding", "Repo"]
+start_date = "2/29/2012"
+frequency = "Daily"
+observation_period = "Weekday"
+release_lag = "One day"
+release_timing = "Weekday"
+seasonal_adjustment = "None"
+units = "Percent"
+path = "./_output/repo_rates.html"
+excel_path = "./src/repo_rates.xlsx"
+docs_path = "./docs_src/charts/repo_rates.md"
+
