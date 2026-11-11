@@ -5,6 +5,53 @@ p19_bianchi_buchner_tamoni_2021
 
 Bond Risk Premiums with Machine Learning
 
+This project replicates the out-of-sample bond excess return forecasts of
+Bianchi, Büchner, and Tamoni (2021, *Review of Financial Studies*), "Bond Risk
+Premiums with Machine Learning". The authors' code is in
+`ProvidedReplicationCode/`. The replication code is in `src/`.
+
+## Replication pipeline
+
+| Step | Script | Output |
+|------|--------|--------|
+| GSW zero-coupon yields (Fed) | `src/load_fed_yield_curve.py` | `_data/fed_yield_curve.parquet` |
+| FRED-MD macro panel | `src/pull_fred_md.py` | `_data/fred_md_raw.parquet`, `_data/fred_md_tcodes.parquet` |
+| Forward rates, excess returns, transformed macro data | `src/build_bbt_dataset.py` | `_data/bbt_*.parquet` |
+| Recursive out-of-sample forecasts | `src/forecast_oos.py` (models in `src/bbt_models.py`, `src/bbt_nn.py`) | `_data/oos_forecasts/<model>.parquet` |
+| R²OOS table, significance, figure | `src/evaluate_oos.py` | `_output/bbt_r2oos*.csv`, `_output/bbt_r2oos_table.tex`, `_output/bbt_cumulative_sse.png` |
+
+Run everything with `doit` (or a single step, e.g. `doit forecast_oos:ElasticNet_macro_fwd`).
+
+**Data.** Predictors are the 1- to 10-year one-year forward rates from the
+Gürkaynak–Sack–Wright yield curve and the FRED-MD macro panel, transformed
+to be stationary with the FRED-MD transformation codes. Targets are 12-month
+excess log returns on 2-, 3-, 4-, 5-, 7-, and 10-year zero-coupon bonds.
+Forecast origins run from 1971:08 to 2017:12, so returns are realized through
+2018:12. Out-of-sample forecasts start at the 1989:01 origin.
+
+**FRED-MD source.** The St. Louis Fed file server rejects scripted downloads.
+For the official data, download a vintage CSV from the
+[FRED-MD page](https://www.stlouisfed.org/research/economists/mccracken/fred-databases)
+and save it as `data_manual/fred_md.csv`. Without that file,
+`pull_fred_md.py` rebuilds the panel series by series from FRED. That panel
+is missing the series FRED does not host with full history, including the
+stock-market group.
+
+**Models.** The models are the historical-mean benchmark, PCA regression,
+PLS, ridge, lasso, elastic net, random forest, and extremely randomized
+trees, each run on forward rates only and on macro data plus forward rates.
+There are also three neural networks ported from Keras to PyTorch:
+`NN1Layer_fwd`, `NN3LayerExog` (32-16-8), and `NN1LayerEnsemExog`, the
+group ensemble.
+
+**Timing.** By default, each training window ends 12 months before the
+forecast origin, so every training target has been realized by the forecast
+date. The provided code trains on rows up to `t-1`. Its last 11 targets are
+returns that are not yet known at `t`. To reproduce that behavior, set
+`BBT_NO_LOOKAHEAD=False`.
+
+See `.env.example` for the sample dates, `nMC`/`nAvg`, and other settings.
+
 ## Quick Start
 
 The quickest way to run code in this repo is to use the following steps.

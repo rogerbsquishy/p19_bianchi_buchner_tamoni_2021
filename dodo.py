@@ -133,6 +133,110 @@ def task_pull():
     }
 
 
+##################################################################
+## Replication of Bianchi, Buchner, and Tamoni (2021)
+##################################################################
+
+BBT_SKLEARN_MODELS = [
+    "HistoricalMean",
+    "PCA_fwd", "PLS_fwd", "Ridge_fwd", "Lasso_fwd", "ElasticNet_fwd", "RF_fwd", "ET_fwd",
+    "PCA_macro_fwd", "PLS_macro_fwd", "Ridge_macro_fwd", "Lasso_macro_fwd",
+    "ElasticNet_macro_fwd", "RF_macro_fwd", "ET_macro_fwd",
+]  # fmt: skip
+BBT_NN_MODELS = ["NN1Layer_fwd", "NN3LayerExog", "NN1LayerEnsemExog"]
+BBT_DATASET = [
+    DATA_DIR / f
+    for f in [
+        "bbt_forward_rates.parquet",
+        "bbt_macro.parquet",
+        "bbt_excess_returns.parquet",
+        "bbt_macro_groups.parquet",
+    ]
+]
+
+
+def task_pull_bbt():
+    """Pull GSW zero-coupon yields and the FRED-MD macro panel"""
+    yield {
+        "name": "gsw_yields",
+        "doc": "Gurkaynak, Sack, and Wright (2007) yield curve from the Fed",
+        "actions": ["python ./src/settings.py", "python ./src/load_fed_yield_curve.py"],
+        "targets": [DATA_DIR / "fed_yield_curve.parquet"],
+        "file_dep": ["./src/settings.py", "./src/load_fed_yield_curve.py"],
+        "clean": [],
+    }
+    yield {
+        "name": "fred_md",
+        "doc": "FRED-MD (manual file, official URL, or rebuilt from FRED)",
+        "actions": ["python ./src/settings.py", "python ./src/pull_fred_md.py"],
+        "targets": [
+            DATA_DIR / "fred_md_raw.parquet",
+            DATA_DIR / "fred_md_tcodes.parquet",
+        ],
+        "file_dep": [
+            "./src/settings.py",
+            "./src/pull_fred_md.py",
+            "./src/fred_md_metadata.py",
+        ],
+        "clean": [],
+    }
+
+
+def task_build_bbt_dataset():
+    """Forward rates, excess returns, and transformed macro predictors"""
+    return {
+        "actions": ["python ./src/build_bbt_dataset.py"],
+        "targets": BBT_DATASET,
+        "file_dep": [
+            "./src/build_bbt_dataset.py",
+            DATA_DIR / "fed_yield_curve.parquet",
+            DATA_DIR / "fred_md_raw.parquet",
+            DATA_DIR / "fred_md_tcodes.parquet",
+        ],
+        "clean": True,
+    }
+
+
+def task_forecast_oos():
+    """Recursive out-of-sample forecasts, one sub-task per model"""
+    for model in BBT_SKLEARN_MODELS + BBT_NN_MODELS:
+        model_file = "bbt_nn.py" if model in BBT_NN_MODELS else "bbt_models.py"
+        yield {
+            "name": model,
+            "actions": [f"python ./src/forecast_oos.py --models {model}"],
+            "targets": [DATA_DIR / "oos_forecasts" / f"{model}.parquet"],
+            "file_dep": [
+                "./src/forecast_oos.py",
+                f"./src/{model_file}",
+                *BBT_DATASET,
+            ],
+            "clean": True,
+            "verbosity": 2,
+        }
+
+
+def task_evaluate_oos():
+    """R2OOS table and figure"""
+    return {
+        "actions": ["python ./src/evaluate_oos.py"],
+        "targets": [
+            OUTPUT_DIR / "bbt_r2oos.csv",
+            OUTPUT_DIR / "bbt_r2oos_pvalues.csv",
+            OUTPUT_DIR / "bbt_r2oos_table.tex",
+            OUTPUT_DIR / "bbt_cumulative_sse.png",
+        ],
+        "file_dep": [
+            "./src/evaluate_oos.py",
+            *[
+                DATA_DIR / "oos_forecasts" / f"{m}.parquet"
+                for m in BBT_SKLEARN_MODELS + BBT_NN_MODELS
+            ],
+        ],
+        "clean": True,
+        "verbosity": 2,
+    }
+
+
 def task_summary_stats():
     """Generate summary statistics tables"""
     file_dep = ["./src/example_table.py"]
