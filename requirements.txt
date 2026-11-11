@@ -33,6 +33,11 @@ xlwings>=0.33.3
 zstandard>=0.23.0
 linearmodels>=6.1
 
+# Neural networks for the Bianchi, Buchner, and Tamoni (2021) replication.
+# The CPU wheel index avoids downloading the much larger CUDA build.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+
 # Jupyter dependencies
 jupyter
 jupyterlab
